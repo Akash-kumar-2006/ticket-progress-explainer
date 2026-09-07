@@ -1,0 +1,52 @@
+{
+  "generated_at": "2026-09-07T10:23:08.921244",
+  "summary": {
+    "tickets_checked": 119,
+    "events_checked": 1022,
+    "ticket_issues": 0,
+    "event_issues": 4,
+    "duplicate_event_ids": [
+      "EV-01020"
+    ],
+    "invalid_event_types": []
+  },
+  "rules": {
+    "missing_ticket_id": "error",
+    "missing_timestamp": "error",
+    "invalid_event_type": "error",
+    "duplicate_event_id": "error",
+    "future_timestamp": "error",
+    "impossible_status_transition": "error",
+    "malformed_date": "error",
+    "inconsistent_promised_date": "warning",
+    "out_of_order": "warning"
+  },
+  "ticket_issues": [],
+  "event_issues": [
+    {
+      "level": "error",
+      "event_id": "EV-00361",
+      "field": "status",
+      "message": "Impossible status transition RESOLVED -> IN_PROGRESS"
+    },
+    {
+      "level": "error",
+      "event_id": "EV-00827",
+      "field": "status",
+      "message": "Impossible status transition RESOLVED -> IN_PROGRESS"
+    },
+    {
+      "level": "error",
+      "event_id": "EV-01007",
+      "field": "status",
+      "message": "Impossible status transition RESOLVED -> IN_PROGRESS"
+    },
+    {
+      "level": "warning",
+      "event_id": "EV-01017",
+      "field": "timestamp",
+      "message": "Event timestamp is out of order (earlier than a previously seen event)"
+    }
+  ],
+  "note": "Deliberate edge cases (conflicts, duplicates, out-of-order) are expected; the pipeline tolerates and flags them."
+}

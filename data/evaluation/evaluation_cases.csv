@@ -1,0 +1,65 @@
+case_id,ticket_id,expected_state,expected_blocker,expected_next_action,expected_date_status,difficulty,failure_case,human_understanding_score,human_followup_required,baseline_score,prototype_score
+E-001,DEMO-001,SCHEDULED,,The scheduled action is being executed.,ON_TRACK,normal,none,,,2.0,5.0
+E-002,DEMO-002,WAITING_FOR_INTERNAL_TEAM,Security Review,Security Review is continuing work on nan.,ON_TRACK,medium,none,,,2.0,3.0
+E-003,DEMO-003,WAITING_FOR_INTERNAL_TEAM,Vendor Operations,Vendor Operations is continuing work on nan.,AT_RISK,medium,none,,,2.0,3.0
+E-004,DEMO-004,DELAYED,,The schedule needs to be reviewed and an updated completion date confirmed.,OVERDUE,hard,overdue_promised_date,,,2.0,5.0
+E-005,DEMO-005,IN_PROGRESS,,Work is continuing on the ticket.,ON_TRACK,normal,conflicting_events,,,2.0,5.0
+E-006,DEMO-006,INVESTIGATING,,The assigned team is starting the investigation.,,normal,missing_evidence,,,2.0,3.0
+E-007,DEMO-007,REOPENED,,The support team is reviewing the reopened request.,ON_TRACK,hard,reopened,,,1.0,5.0
+E-008,XTCK-001,IN_PROGRESS,,Work is continuing on the ticket.,ON_TRACK,normal,none,,,2.0,5.0
+E-009,XTCK-002,IN_PROGRESS,,Work is continuing on the ticket.,ON_TRACK,normal,duplicate_events,,,2.0,5.0
+E-010,TCK-1001,WAITING_FOR_INTERNAL_TEAM,Vendor Operations,Vendor Operations is continuing work on nan.,ON_TRACK,medium,none,,,2.0,3.0
+E-011,TCK-1002,RESOLVED,,No further action is required.,COMPLETED,normal,none,,,3.0,5.0
+E-012,TCK-1003,RESOLVED,,No further action is required.,COMPLETED,normal,none,,,3.0,5.0
+E-013,TCK-1004,WAITING_FOR_INTERNAL_TEAM,NA Support,NA Support is continuing work on nan.,AT_RISK,medium,none,,,2.0,2.0
+E-014,TCK-1005,WAITING_FOR_INTERNAL_TEAM,ME Support,ME Support is continuing work on Configuration change scheduled for this week..,ON_TRACK,medium,none,,,2.0,4.0
+E-015,TCK-1006,RESOLVED,,No further action is required.,COMPLETED,normal,none,,,3.0,5.0
+E-016,TCK-1007,WAITING_FOR_INTERNAL_TEAM,Vendor Operations,Vendor Operations is continuing work on nan.,AT_RISK,medium,none,,,2.0,3.0
+E-017,TCK-1008,RESOLVED,,No further action is required.,COMPLETED,normal,none,,,3.0,5.0
+E-018,TCK-1009,DELAYED,,The schedule needs to be reviewed and an updated completion date confirmed.,OVERDUE,hard,overdue_promised_date,,,2.0,5.0
+E-019,TCK-1010,RESOLVED,,No further action is required.,COMPLETED,normal,none,,,3.0,5.0
+E-020,TCK-1011,BLOCKED,Vendor delivery from Fabricon Global,The vendor is expected to provide: Fabricon Global.,ON_TRACK,hard,none,,,2.0,5.0
+E-021,TCK-1012,RESOLVED,,No further action is required.,COMPLETED,normal,none,,,3.0,5.0
+E-022,TCK-1013,RESOLVED,,No further action is required.,COMPLETED,normal,none,,,3.0,5.0
+E-023,TCK-1014,RESOLVED,,No further action is required.,COMPLETED,normal,none,,,3.0,5.0
+E-024,TCK-1015,WAITING_FOR_INTERNAL_TEAM,Vendor Operations,Vendor Operations is continuing work on nan.,AT_RISK,medium,none,,,2.0,3.0
+E-025,TCK-1016,WAITING_FOR_INTERNAL_TEAM,Vendor Operations,Vendor Operations is continuing work on nan.,AT_RISK,medium,none,,,2.0,3.0
+E-026,TCK-1017,WAITING_FOR_INTERNAL_TEAM,Vendor Operations,Vendor Operations is continuing work on nan.,AT_RISK,medium,none,,,2.0,3.0
+E-027,TCK-1018,REOPENED,,The support team is reviewing the reopened request.,ON_TRACK,hard,reopened,,,1.0,5.0
+E-028,TCK-1019,WAITING_FOR_INTERNAL_TEAM,Vendor Operations,Vendor Operations is continuing work on nan.,AT_RISK,medium,none,,,2.0,3.0
+E-029,TCK-1020,WAITING_FOR_INTERNAL_TEAM,India Support,India Support is continuing work on nan.,ON_TRACK,medium,none,,,2.0,2.0
+E-030,TCK-1021,WAITING_FOR_INTERNAL_TEAM,APAC Support,APAC Support is continuing work on nan.,ON_TRACK,medium,none,,,2.0,2.0
+E-031,TCK-1022,WAITING_FOR_INTERNAL_TEAM,APAC Support,APAC Support is continuing work on nan.,ON_TRACK,medium,none,,,2.0,2.0
+E-032,TCK-1023,REOPENED,,The support team is reviewing the reopened request.,ON_TRACK,hard,reopened,,,1.0,5.0
+E-033,TCK-1024,REOPENED,,The support team is reviewing the reopened request.,ON_TRACK,hard,reopened,,,1.0,5.0
+E-034,TCK-1025,DELAYED,,The schedule needs to be reviewed and an updated completion date confirmed.,OVERDUE,hard,overdue_promised_date,,,2.0,5.0
+E-035,TCK-1026,DELAYED,,The schedule needs to be reviewed and an updated completion date confirmed.,OVERDUE,hard,overdue_promised_date,,,2.0,5.0
+E-036,TCK-1027,RESOLVED,,No further action is required.,COMPLETED,normal,none,,,3.0,5.0
+E-037,TCK-1028,RESOLVED,,No further action is required.,COMPLETED,normal,none,,,3.0,5.0
+E-038,TCK-1029,RESOLVED,,No further action is required.,COMPLETED,normal,none,,,3.0,5.0
+E-039,TCK-1030,RESOLVED,,No further action is required.,COMPLETED,normal,none,,,3.0,5.0
+E-040,TCK-1031,RESOLVED,,No further action is required.,COMPLETED,normal,none,,,3.0,5.0
+E-041,TCK-1032,RESOLVED,,No further action is required.,COMPLETED,normal,none,,,3.0,5.0
+E-042,TCK-1033,RESOLVED,,No further action is required.,COMPLETED,normal,none,,,3.0,5.0
+E-043,TCK-1034,RESOLVED,,No further action is required.,COMPLETED,normal,none,,,3.0,5.0
+E-044,TCK-1035,DELAYED,,The schedule needs to be reviewed and an updated completion date confirmed.,OVERDUE,hard,overdue_promised_date,,,2.0,5.0
+E-045,TCK-1036,WAITING_FOR_INTERNAL_TEAM,LATAM Support,LATAM Support is continuing work on Configuration change scheduled for this week..,ON_TRACK,medium,none,,,2.0,4.0
+E-046,TCK-1037,DELAYED,,The schedule needs to be reviewed and an updated completion date confirmed.,OVERDUE,hard,overdue_promised_date,,,2.0,5.0
+E-047,TCK-1038,RESOLVED,,No further action is required.,COMPLETED,normal,none,,,3.0,5.0
+E-048,TCK-1039,RESOLVED,,No further action is required.,COMPLETED,normal,none,,,3.0,5.0
+E-049,TCK-1040,INVESTIGATING,,The assigned team is starting the investigation.,,normal,missing_evidence,,,2.0,3.0
+E-050,TCK-1041,WAITING_FOR_INTERNAL_TEAM,Vendor Operations,Vendor Operations is continuing work on nan.,AT_RISK,medium,none,,,2.0,3.0
+E-051,TCK-1042,IN_PROGRESS,,Work is continuing on the ticket.,ON_TRACK,normal,conflicting_events,,,2.0,5.0
+E-052,TCK-1043,WAITING_FOR_INTERNAL_TEAM,ME Support,ME Support is continuing work on nan.,AT_RISK,medium,none,,,2.0,2.0
+E-053,TCK-1044,WAITING_FOR_INTERNAL_TEAM,Vendor Operations,Vendor Operations is continuing work on nan.,AT_RISK,medium,none,,,2.0,3.0
+E-054,TCK-1045,IN_PROGRESS,,Work is continuing on the ticket.,ON_TRACK,normal,multiple_regional_transfers,,,2.0,5.0
+E-055,TCK-1046,REOPENED,,The support team is reviewing the reopened request.,ON_TRACK,hard,reopened,,,1.0,5.0
+E-056,TCK-1047,RESOLVED,,No further action is required.,COMPLETED,normal,none,,,3.0,5.0
+E-057,TCK-1048,RESOLVED,,No further action is required.,COMPLETED,normal,none,,,3.0,5.0
+E-058,TCK-1049,RESOLVED,,No further action is required.,COMPLETED,normal,none,,,3.0,5.0
+E-059,TCK-1050,RESOLVED,,No further action is required.,COMPLETED,normal,none,,,3.0,5.0
+E-060,TCK-1051,RESOLVED,,No further action is required.,COMPLETED,normal,none,,,3.0,5.0
+E-061,TCK-1052,RESOLVED,,No further action is required.,COMPLETED,normal,none,,,3.0,5.0
+E-062,TCK-1053,RESOLVED,,No further action is required.,COMPLETED,normal,none,,,3.0,5.0
+E-063,TCK-1054,RESOLVED,,No further action is required.,COMPLETED,normal,none,,,3.0,5.0
+E-064,TCK-1055,RESOLVED,,No further action is required.,COMPLETED,normal,none,,,3.0,5.0

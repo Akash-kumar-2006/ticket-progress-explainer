@@ -1,0 +1,29 @@
+# Optional Docker support. The application runs locally without Docker.
+# Usage:
+#   docker compose up --build
+#   open http://localhost:8000/docs  (API)
+#   open http://localhost:5173       (Frontend)
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    environment:
+      DATABASE_URL: sqlite:////app/data/ticket_progress.db
+      CORS_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
+    volumes:
+      - ./data:/app/data
+    ports:
+      - "8000:8000"
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend.Dockerfile
+    depends_on:
+      - backend
+    environment:
+      VITE_API_BASE: http://localhost:8000
+    ports:
+      - "5173:80"
