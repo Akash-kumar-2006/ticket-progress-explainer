@@ -1,0 +1,14 @@
+# Backend dependencies (Python 3.11+). SQLite for local dev; switch DB via DATABASE_URL.
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+sqlalchemy>=2.0.35
+pydantic>=2.9.0
+pydantic-settings>=2.5.0
+python-multipart>=0.0.12
+pandas>=2.2.2
+numpy>=2.1.0
+pytest>=8.3.0
+httpx>=0.27.0
+
+# Optional (not required to run): scikit-learn>=1.5 (used only for optional
+# clustering helpers; the core engine is fully rule-based and offline).
