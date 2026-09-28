@@ -1,0 +1,85 @@
+case_id,ticket_id,expected_state,expected_action,expected_action_text,generated_action,generated_action_category,generated_explanation,grounding_score,reviewer_id,decision,action_agrees,understanding,followup_required,comment
+E-001,DEMO-001,SCHEDULED,UNSPECIFIED,The scheduled change or deployment must be applied in the next available window.,The scheduled change or deployment must be applied in the next available window.,DEPLOYMENT,"Your request is currently being handled by India Support.
+
+The support team provided an update: Technical investigation completed; configuration update identified as the fix.
+
+The next expected action is: The scheduled change or deployment must be applied in the next available window.
+
+Your promised completion date is September 12. Based on the latest updates this date is currently still achievable.",77,,,,,,
+E-002,DEMO-002,WAITING_FOR_APPROVAL,APPROVAL,Security Review needs to complete the Security approval.,Security Review needs to complete the Security approval.,APPROVAL,"Your request is currently waiting for approval from Security Review.
+
+The support team provided an update: Waiting for security approval before proceeding.
+
+Work is currently waiting for Security Review.
+
+The next expected action is: Security Review needs to complete the Security approval.
+
+Your promised completion date is September 12. Based on the latest updates this date is currently still achievable.",86,,,,,,
+E-003,DEMO-003,WAITING_FOR_VENDOR,VENDOR_RESPONSE,The vendor is expected to provide: PartsUnited Express.,The vendor is expected to provide: PartsUnited Express.,VENDOR_RESPONSE,"Your request is currently waiting for the vendor to provide the required item.
+
+The request was transferred to a new team on September 1. The support team provided an update: Technical diagnosis completed; replacement component required.
+
+Work is currently waiting for Vendor Operations.
+
+The next expected action is: The vendor is expected to provide: PartsUnited Express.
+
+Your promised completion date is September 10, but based on the latest updates this date may not be met.",91,,,,,,
+E-004,DEMO-004,DELAYED,UNSPECIFIED,The vendor must confirm dispatch or delivery of the required items.,The vendor must confirm dispatch or delivery of the required items.,VENDOR_RESPONSE,"Your request is currently delayed. The promised completion date has passed and the request is not yet resolved.
+
+The support team provided an update: Scheduled replacement part installation; waiting for the part.
+
+The next expected action is: The vendor must confirm dispatch or delivery of the required items.
+
+Your promised completion date is September 4. This date has passed and the request is still unresolved.",77,,,,,,
+E-005,DEMO-005,IN_PROGRESS,UNSPECIFIED,Work is continuing on the ticket.,Work is continuing on the ticket.,,"Your request is currently being handled by India Support.
+
+The support team provided an update: Issue was worked on and marked resolved by mistake.
+
+The next expected action is: Work is continuing on the ticket.
+
+Your promised completion date is September 9. Based on the latest updates this date is currently still achievable.",57,,,,,,
+E-006,DEMO-006,INVESTIGATING,UNSPECIFIED,The assigned team is starting the investigation.,,,Your ticket is currently in progress. The available updates do not provide enough information to reliably explain the next step.,0,,,,,,
+E-007,DEMO-007,REOPENED,INVESTIGATION,The support team is reviewing the reopened request.,The support team is reviewing the reopened request.,INVESTIGATION,"Your previously resolved request has been reopened.
+
+The support team provided an update: Reopened; new investigation started.
+
+The next expected action is: The support team is reviewing the reopened request.
+
+Your promised completion date is September 11. Based on the latest updates this date is currently still achievable.",57,,,,,,
+E-008,XTCK-001,IN_PROGRESS,UNSPECIFIED,The support team must complete the investigation and identify the cause.,The support team must complete the investigation and identify the cause.,INVESTIGATION,"Your request is currently being handled by EU Support.
+
+The support team provided an update: Investigation in progress.
+
+The next expected action is: The support team must complete the investigation and identify the cause.",71,,,,,,
+E-009,XTCK-002,IN_PROGRESS,UNSPECIFIED,The support team must complete the investigation and identify the cause.,The support team must complete the investigation and identify the cause.,INVESTIGATION,"Your request is currently being handled by ME Support.
+
+The support team provided an update: Investigation ongoing.
+
+The next expected action is: The support team must complete the investigation and identify the cause.",71,,,,,,
+E-010,TCK-1001,WAITING_FOR_VENDOR,VENDOR_RESPONSE,The vendor is expected to provide: Northwind Components.,The vendor is expected to provide: Northwind Components.,VENDOR_RESPONSE,"Your request is currently waiting for the vendor to provide the required item.
+
+The request was transferred to a new team on September 1. The support team provided an update: Technical diagnosis completed; a replacement is required.
+
+Work is currently waiting for Vendor Operations.
+
+The next expected action is: The vendor is expected to provide: Northwind Components.
+
+Your promised completion date is September 13. Based on the latest updates this date is currently still achievable.",91,,,,,,
+E-013,TCK-1004,WAITING_FOR_APPROVAL,APPROVAL,Finance Approval needs to complete the Finance approval.,Finance Approval needs to complete the Finance approval.,APPROVAL,"Your request is currently waiting for approval from Finance Approval.
+
+The support team provided an update: Waiting for approval before proceeding.
+
+Work is currently waiting for Finance Approval.
+
+The next expected action is: Finance Approval needs to complete the Finance approval.
+
+Your promised completion date is September 8, but based on the latest updates this date may not be met.",86,,,,,,
+E-014,TCK-1005,WAITING_FOR_INTERNAL_TEAM,DEPENDENCY_PENDING,ME Support is continuing work on Configuration update.,ME Support is continuing work on Configuration update.,DEPENDENCY_PENDING,"Your request is currently waiting on ME Support.
+
+The support team provided an update: Diagnosis completed; configuration update scheduled.
+
+Work is currently waiting for ME Support.
+
+The next expected action is: ME Support is continuing work on Configuration update.
+
+Your promised completion date is September 12. Based on the latest updates this date is currently still achievable.",80,,,,,,
