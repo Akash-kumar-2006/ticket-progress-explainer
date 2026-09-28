@@ -91,6 +91,10 @@ class ProgressResult(BaseModel):
     promised_date: datetime | None = None
     next_action: str | None = None
     next_action_evidence: list[str] = []
+    #: Lexicon category of next_action (e.g. APPROVAL, VENDOR_RESPONSE) or "".
+    next_action_category: str = ""
+    #: specific | generic | sparse
+    next_action_confidence: str = ""
     reasons: list[str] = []
     evidence_ids: list[str] = []
     blockers: list[str] = []
@@ -126,6 +130,8 @@ class ExplanationPayload(BaseModel):
     evidence: list[EvidenceItem] = []
     next_action: str | None = None
     next_action_evidence: list[str] = []
+    next_action_category: str = ""
+    next_action_confidence: str = ""
     promised_date: datetime | None = None
     days_remaining: int | None = None
     insufficient_evidence: bool = False
@@ -151,6 +157,8 @@ class ExplanationPayload(BaseModel):
             ],
             "next_action": self.next_action,
             "next_action_evidence": self.next_action_evidence,
+            "next_action_category": self.next_action_category,
+            "next_action_confidence": self.next_action_confidence,
             "promised_date": self.promised_date.isoformat() if self.promised_date else None,
             "days_remaining": self.days_remaining,
             "insufficient_evidence": self.insufficient_evidence,

@@ -11,6 +11,7 @@ The rule order is documented in docs/ARCHITECTURE.md.
 """
 from datetime import datetime, timedelta
 
+from ..engines.action_markers import infer_action
 from ..engines.date_risk import DateRiskEngine
 from ..engines.dependency import DependencyEngine, CUSTOMER_WAIT_MARKERS
 from ..engines.grounding import _status_conflicts
@@ -77,6 +78,8 @@ class ProgressStateEngine:
             return self._result(
                 ticket_id, "REOPENED", eff_status, dres, promised_date, events, reasons,
                 next_action="The support team is reviewing the reopened request.",
+                next_action_category="INVESTIGATION",
+                next_action_confidence="generic",
             )
 
         # ---- Waiting states from dependencies ----
@@ -90,6 +93,8 @@ class ProgressStateEngine:
                 reasons, blockers=blockers, waiting_on=a.owner,
                 next_action=f"{a.owner} needs to complete the {a.title}.",
                 next_action_evidence=[a.source_event_id],
+                next_action_category="APPROVAL",
+                next_action_confidence="specific",
             )
 
         if pending_vendors:
@@ -111,6 +116,8 @@ class ProgressStateEngine:
                 waiting_on="Vendor Operations",
                 next_action=f"The vendor is expected to provide: {v.title.split('from ')[-1]}.",
                 next_action_evidence=[v.source_event_id],
+                next_action_category="VENDOR_RESPONSE",
+                next_action_confidence="specific",
             )
 
         if pending_customers:
@@ -122,6 +129,8 @@ class ProgressStateEngine:
                 reasons, waiting_on="Customer",
                 next_action="The customer needs to provide the requested information.",
                 next_action_evidence=[c.source_event_id],
+                next_action_category="CUSTOMER_RESPONSE",
+                next_action_confidence="specific",
             )
 
         if blocked_list:
@@ -133,6 +142,8 @@ class ProgressStateEngine:
                 blockers=[d.title for d in blocked_list], waiting_on=b.owner,
                 next_action=f"The blocker ({b.title}) must be removed by {b.owner}.",
                 next_action_evidence=[b.source_event_id],
+                next_action_category="DEPENDENCY_PENDING",
+                next_action_confidence="specific",
             )
 
         if any_pending:
@@ -144,55 +155,100 @@ class ProgressStateEngine:
                 reasons, waiting_on=p.owner,
                 next_action=f"{p.owner} is continuing work on {p.title}.",
                 next_action_evidence=[p.source_event_id],
+                next_action_category="DEPENDENCY_PENDING",
+                next_action_confidence="specific",
             )
 
         # ---- Overdue (unresolved, no active waiting dependency) ----
         dres = self._date(promised_date, False, eff_status, events, now)
         if dres.date_status == "OVERDUE":
             reasons.append("Overdue: promised date passed, ticket unresolved, no active wait dependency")
+            action, action_ev, action_cat, action_conf = self._generic_action(
+                "DELAYED", events, deps,
+                "The schedule needs to be reviewed and an updated completion date confirmed.",
+            )
             return self._result(
                 ticket_id, "DELAYED", eff_status, dres, promised_date, events, reasons,
-                next_action="The schedule needs to be reviewed and an updated completion date confirmed.",
+                next_action=action, next_action_evidence=action_ev,
+                next_action_category=action_cat, next_action_confidence=action_conf,
             )
 
         # ---- Recent transfer ----
         if self._recent_transfer(events, now):
             reasons.append("Regional team transfer happened recently")
+            action, action_ev, action_cat, action_conf = self._generic_action(
+                "TRANSFERRED", events, deps, "The receiving team is taking over the request.",
+            )
             return self._result(
                 ticket_id, "TRANSFERRED", eff_status, dres, promised_date, events, reasons,
-                next_action="The receiving team is taking over the request.",
+                next_action=action, next_action_evidence=action_ev,
+                next_action_category=action_cat, next_action_confidence=action_conf,
             )
 
         # ---- Generic status ----
         if eff_status == "IN_PROGRESS":
             if self._scheduled(events):
                 reasons.append("Latest work note schedules the next action")
+                action, action_ev, action_cat, action_conf = self._generic_action(
+                    "SCHEDULED", events, deps, "The scheduled action is being executed.",
+                )
                 return self._result(
                     ticket_id, "SCHEDULED", eff_status, dres, promised_date, events, reasons,
-                    next_action="The scheduled action is being executed.",
+                    next_action=action, next_action_evidence=action_ev,
+                    next_action_category=action_cat, next_action_confidence=action_conf,
                 )
             reasons.append("Ticket is in progress with no unresolved dependencies")
+            action, action_ev, action_cat, action_conf = self._generic_action(
+                "IN_PROGRESS", events, deps, "Work is continuing on the ticket.",
+            )
             return self._result(
                 ticket_id, "IN_PROGRESS", eff_status, dres, promised_date, events, reasons,
-                next_action="Work is continuing on the ticket.",
+                next_action=action, next_action_evidence=action_ev,
+                next_action_category=action_cat, next_action_confidence=action_conf,
             )
 
         if eff_status == "OPEN":
             reasons.append("Ticket is open with no recorded activity beyond assignment")
+            action, action_ev, action_cat, action_conf = self._generic_action(
+                "INVESTIGATING", events, deps, "The assigned team is starting the investigation.",
+            )
             return self._result(
                 ticket_id, "INVESTIGATING", eff_status, dres, promised_date, events, reasons,
-                next_action="The assigned team is starting the investigation.",
+                next_action=action, next_action_evidence=action_ev,
+                next_action_category=action_cat, next_action_confidence=action_conf,
             )
 
         # PENDING / ESCALATED default
         reasons.append(f"No specific blocker recorded; status is {eff_status}")
+        default_state = _map_default_state(eff_status)
+        action, action_ev, action_cat, action_conf = self._generic_action(
+            default_state, events, deps, "The support team is continuing to work on the request.",
+        )
         return self._result(
-            ticket_id, _map_default_state(eff_status), eff_status, dres, promised_date, events,
-            reasons,
-            next_action="The support team is continuing to work on the request.",
+            ticket_id, default_state, eff_status, dres, promised_date, events, reasons,
+            next_action=action, next_action_evidence=action_ev,
+            next_action_category=action_cat, next_action_confidence=action_conf,
         )
 
     # ------------------------------------------------------------------
+    def _generic_action(self, state: str, events, deps, fallback: str):
+        """Refine a generic next action using the action-marker lexicon.
+
+        Returns ``(text, evidence_ids, category, confidence)``. When no marker is
+        present in real event text the original ``fallback`` sentence is kept, so
+        existing behaviour is unchanged for tickets without action wording.
+        """
+        signal = infer_action(events, deps, state)
+        if signal is not None:
+            return signal.text, signal.evidence_ids, signal.category, signal.confidence
+        latest = max(events, key=lambda e: (e.timestamp, e.event_id), default=None)
+        return (
+            fallback,
+            [latest.event_id] if latest else [],
+            "",
+            "generic",
+        )
+
     def _date(self, promised, resolved, state, events, now) -> DateAnalysis:
         return self._date_engine.analyze(promised, resolved, state, events, now)
 
@@ -209,11 +265,24 @@ class ProgressStateEngine:
         waiting_on=None,
         next_action=None,
         next_action_evidence=None,
+        next_action_category="",
+        next_action_confidence="",
     ) -> ProgressResult:
         ev_ids = [e.event_id for e in events]
         if next_action_evidence is None:
             latest = max(events, key=lambda e: (e.timestamp, e.event_id), default=None)
             next_action_evidence = [latest.event_id] if latest else []
+        next_action_evidence = [e for e in next_action_evidence if e]
+        if not next_action_evidence and next_action:
+            # Anti-hallucination guard: a next action that cannot point at a real
+            # event is not stated at all. The explanation then falls back to the
+            # explicit insufficient-evidence wording instead of implying work.
+            reasons = list(reasons) + [
+                "No next action stated: no ticket event supports one."
+            ]
+            next_action = None
+            next_action_category = ""
+            next_action_confidence = "sparse"
         return ProgressResult(
             ticket_id=ticket_id,
             progress_state=state,
@@ -225,6 +294,8 @@ class ProgressStateEngine:
             promised_date=promised_date,
             next_action=next_action,
             next_action_evidence=next_action_evidence or [],
+            next_action_category=next_action_category,
+            next_action_confidence=next_action_confidence,
             reasons=reasons,
             evidence_ids=ev_ids,
             blockers=blockers or [],

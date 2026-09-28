@@ -66,7 +66,33 @@ class EvidenceSelector:
         # Deterministic priority order, cap the count
         order = {name: i for i, name in enumerate(PRIORITY_FOR_EXPLANATION)}
         picked.sort(key=lambda it: (order.get(_cat_for(it), 99), -it.timestamp.timestamp()))
-        return picked[:MAX_EVIDENCE]
+        selected = picked[:MAX_EVIDENCE]
+
+        # Anything the next-action claim cites must remain visible, even when a
+        # newer event of the same type won the per-category slot. Without this a
+        # perfectly grounded sentence could point at an event the reviewer is
+        # not shown.
+        required = sorted(set((progress.next_action_evidence if progress else None) or []))
+        if required:
+            present = {it.event_id for it in selected}
+            by_id = {e.event_id: e for e in events}
+            for eid in required:
+                if eid in present:
+                    continue
+                ev = by_id.get(eid)
+                if ev is None:
+                    continue
+                selected.append(
+                    EvidenceItem(
+                        event_id=ev.event_id,
+                        event_type=ev.event_type,
+                        timestamp=ev.timestamp,
+                        text=ev.message or ev.label(),
+                        reason="Supports the stated next action",
+                        conflict_flag=ev.conflict_flag,
+                    )
+                )
+        return selected
 
 
 def _cat_for(item: EvidenceItem) -> str:

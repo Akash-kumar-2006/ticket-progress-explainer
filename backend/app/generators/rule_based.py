@@ -96,6 +96,8 @@ class RuleBasedExplanationGenerator(ExplanationGenerator):
             evidence=evidence,
             next_action=progress.next_action,
             next_action_evidence=progress.next_action_evidence,
+            next_action_category=progress.next_action_category,
+            next_action_confidence=progress.next_action_confidence,
             promised_date=progress.promised_date,
             days_remaining=progress.days_remaining,
             insufficient_evidence=insufficient,
