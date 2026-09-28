@@ -38,4 +38,8 @@ Thumbs.db
 *.log
 logs/
 
+# Nested clones of this repository (created by running `git clone` inside the
+# project folder) must never be committed.
+ticket-progress-explainer/
+
 # Keep synthetic dataset for demonstration (do not ignore data/raw, data/processed, data/evaluation)
