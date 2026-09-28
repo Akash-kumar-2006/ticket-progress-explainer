@@ -11,6 +11,7 @@ from ..audit import log_audit
 from ..config import settings
 from ..database import get_db
 from ..engines import ProgressResult
+from ..engines.models import EventData
 from ..integrations import describe_stub, fetch_ticket, fetch_events as stub_fetch_events
 from ..models.explanation import GeneratedExplanation
 from ..models.ticket import Ticket
@@ -24,9 +25,26 @@ from ..schemas.api import (
 )
 from ..services.explanation_service import ExplanationService, reference_now
 from ..services.evaluation_service import EvaluationService
+from ..services.human_evaluation_service import (
+    HUMAN_INSTRUCTIONS,
+    HumanEvaluationService,
+)
 from ..services.ingestion import normalize_rows_to_orm
 
 router = APIRouter()
+
+#: Ticket-support role vocabulary for this project. Anything else is rejected
+#: rather than silently downgraded, so a typo or a copied request cannot be
+#: mistaken for a valid identity.
+KNOWN_ROLES = frozenset(
+    {"CUSTOMER", "SUPPORT_AGENT", "AGENT", "REVIEWER", "ADMIN", "SYSTEM"}
+)
+
+#: Roles allowed to change the publication state of an explanation.
+REVIEW_ROLES = ("REVIEWER", "ADMIN")
+PUBLISH_ROLES = ("REVIEWER", "ADMIN")
+ROLLBACK_ROLES = ("ADMIN",)
+EVALUATION_ROLES = ("ADMIN", "REVIEWER", "SYSTEM")
 
 
 def _role(request: Request) -> str:
@@ -35,6 +53,34 @@ def _role(request: Request) -> str:
 
 def _actor(request: Request) -> str:
     return request.headers.get("X-Actor", "anonymous") or "anonymous"
+
+
+def enforce_role(role: str, allowed: tuple[str, ...], request: Request | None = None) -> str:
+    """Validate a claimed role server-side.
+
+    Demo-grade identity: the caller states its role in the request body and, if
+    present, in the ``X-Role`` header. The header is treated as the identity
+    provider here, so when it is supplied it must agree with the body. This is
+    not a production authentication mechanism - see docs/SECURITY.md.
+    """
+    normalized = (role or "").strip().upper()
+    if normalized not in KNOWN_ROLES:
+        raise HTTPException(status_code=400, detail=f"unknown role {role!r}")
+    if request is not None:
+        header_role = (request.headers.get("X-Role") or "").strip().upper()
+        if header_role:
+            if header_role not in KNOWN_ROLES:
+                raise HTTPException(status_code=400, detail=f"unknown role {header_role!r}")
+            if header_role != normalized:
+                raise HTTPException(
+                    status_code=403, detail="X-Role header does not match the role in the request body"
+                )
+    if normalized not in allowed:
+        raise HTTPException(
+            status_code=403,
+            detail=f"this action requires one of: {', '.join(allowed)}",
+        )
+    return normalized
 
 
 def _as_of(value: str | None) -> datetime | None:
@@ -233,8 +279,7 @@ def review_explanation(
     db: Session = Depends(get_db),
 ):
     _ticket_or_404(db, ticket_id)
-    if body.role not in ("REVIEWER", "ADMIN"):
-        raise HTTPException(status_code=403, detail="review requires REVIEWER or ADMIN role")
+    body.role = enforce_role(body.role, REVIEW_ROLES, request)
     exp = db.query(GeneratedExplanation).filter(
         GeneratedExplanation.ticket_id == ticket_id,
         GeneratedExplanation.is_baseline == False,  # noqa: E712
@@ -277,8 +322,7 @@ def publish_explanation(
     db: Session = Depends(get_db),
 ):
     _ticket_or_404(db, ticket_id)
-    if body.role not in ("REVIEWER", "ADMIN"):
-        raise HTTPException(status_code=403, detail="publishing requires REVIEWER or ADMIN role")
+    body.role = enforce_role(body.role, PUBLISH_ROLES, request)
     exp = db.query(GeneratedExplanation).filter(
         GeneratedExplanation.ticket_id == ticket_id,
         GeneratedExplanation.is_baseline == False,  # noqa: E712
@@ -313,8 +357,7 @@ def rollback_explanation(
     db: Session = Depends(get_db),
 ):
     _ticket_or_404(db, ticket_id)
-    if body.role != "ADMIN":
-        raise HTTPException(status_code=403, detail="rollback requires ADMIN role")
+    body.role = enforce_role(body.role, ROLLBACK_ROLES, request)
     latest = db.query(GeneratedExplanation).filter(
         GeneratedExplanation.ticket_id == ticket_id,
         GeneratedExplanation.is_baseline == False,  # noqa: E712
@@ -517,6 +560,125 @@ def run_evaluation(request: Request = None, db: Session = Depends(get_db)):
     return result
 
 
+# ------------------------------------------------------------------ human validation
+@router.get("/evaluation/human/packet")
+def human_review_packet(limit: int = 12, db: Session = Depends(get_db)):
+    """Blank review sheet: ground-truth action vs generated action, no judgements.
+
+    The packet is what a reviewer fills in. No decision is implied by it.
+    """
+    svc = HumanEvaluationService(db)
+    rows = svc.build_packet(limit=max(1, min(limit, 64)))
+    return {
+        "status": "framework ready - reviewers fill in decision/action_agrees/understanding",
+        "validation_completed": False,
+        "recommended_reviewers": 5,
+        "cases": rows,
+        "instructions": HUMAN_INSTRUCTIONS,
+    }
+
+
+@router.post("/evaluation/human/review")
+def submit_human_review(payload: dict, request: Request = None, db: Session = Depends(get_db)):
+    """Record one reviewer's judgement on one case."""
+    svc = HumanEvaluationService(db)
+    try:
+        row = svc.submit_review(
+            case_id=str(payload.get("case_id", "")),
+            ticket_id=str(payload.get("ticket_id", "")),
+            reviewer_id=str(payload.get("reviewer_id", "")),
+            decision=str(payload.get("decision", "")),
+            action_agrees=bool(payload.get("action_agrees")),
+            understanding=int(payload.get("understanding", 0)),
+            followup_required=bool(payload.get("followup_required")),
+            expected_action=str(payload.get("expected_action", "")),
+            generated_action=str(payload.get("generated_action", "")),
+            comment=str(payload.get("comment", "")),
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    log_audit(
+        db,
+        actor=_actor(request),
+        role="REVIEWER",
+        action="HUMAN_REVIEW_SUBMITTED",
+        ticket_id=row.ticket_id,
+        new_value=f"{row.decision}, action_agrees={row.action_agrees}",
+        reason="human validation review recorded",
+        source="api",
+    )
+    return row.to_dict()
+
+
+@router.get("/evaluation/human/summary")
+def human_review_summary(db: Session = Depends(get_db)):
+    """Agreement statistics. Reports validation_completed=False until data exists."""
+    return HumanEvaluationService(db).summary()
+
+
+# ------------------------------------------------------------------ grounding gate
+@router.post("/tickets/{ticket_id}/grounding-check")
+def grounding_check(
+    ticket_id: str,
+    generator: str = "rule_based",
+    request: Request = None,
+    db: Session = Depends(get_db),
+):
+    """Run the grounding/refusal gate over a generated explanation.
+
+    Returns the report; `passed=false` lists what the gate rejected. The LLM
+    generator stays optional - it falls back to the rule-based output when no
+    provider is configured.
+    """
+    from ..integrations import fetch_events as stub_fetch_events
+    from ..services.grounding_gate import check_grounding
+
+    _ticket_or_404(db, ticket_id)
+    svc = ExplanationService(db)
+    payload, _ = svc.generate(ticket_id, generator, persist=False)
+    events = _events_for(db, ticket_id)
+    report = check_grounding(payload, events)
+    report_dict = report.to_dict()
+    report_dict.update(
+        {
+            "ticket_id": ticket_id,
+            "generator": generator,
+            "grounding_score": payload.grounding_score,
+            "insufficient_evidence": payload.insufficient_evidence,
+        }
+    )
+    return report_dict
+
+
+def _events_for(db: Session, ticket_id: str):
+    """Load raw events for a ticket as EventData (used by the grounding gate)."""
+    from ..integrations import fetch_events as _fetch
+    from ..models.event import TicketEvent
+
+    rows = db.query(TicketEvent).filter(TicketEvent.ticket_id == ticket_id).all()
+    if not rows:
+        return []
+    return [
+        EventData(
+            event_id=r.event_id,
+            ticket_id=r.ticket_id,
+            timestamp=r.timestamp,
+            event_type=r.event_type,
+            actor_type=r.actor_type or "AGENT",
+            actor_id=r.actor_id or "",
+            region=r.region or "",
+            team=r.team or "",
+            old_status=r.old_status,
+            new_status=r.new_status,
+            message=r.message or "",
+            dependency_id=r.dependency_id,
+            vendor=r.vendor,
+            approval_type=r.approval_type,
+        )
+        for r in rows
+    ]
+
+
 @router.post("/evaluation/human")
 def submit_human_evaluation(
     payload: dict,
@@ -635,6 +797,8 @@ def _progress_dict(p: ProgressResult) -> dict:
         "promised_date": p.promised_date.isoformat() if p.promised_date else None,
         "next_action": p.next_action,
         "next_action_evidence": p.next_action_evidence,
+        "next_action_category": p.next_action_category,
+        "next_action_confidence": p.next_action_confidence,
         "reasons": p.reasons,
         "blockers": p.blockers,
         "waiting_on": p.waiting_on,

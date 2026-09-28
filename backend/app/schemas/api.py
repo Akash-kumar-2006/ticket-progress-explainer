@@ -33,19 +33,22 @@ class ImportRequest(BaseModel):
 
 class ReviewRequest(BaseModel):
     actor: str = "reviewer"
-    role: str = "REVIEWER"
+    #: Required. There is deliberately no default: a privileged action must
+    #: state which role is performing it, and enforce_role() validates it
+    #: server-side against the role vocabulary.
+    role: str
     decision: str  # APPROVE | REJECT
     reason: str = ""
 
 
 class PublishRequest(BaseModel):
     actor: str = "support_agent"
-    role: str = "REVIEWER"
+    role: str
 
 
 class RollbackRequest(BaseModel):
     actor: str = "admin"
-    role: str = "ADMIN"
+    role: str
     reason: str = ""
     target_version: int | None = None
 
