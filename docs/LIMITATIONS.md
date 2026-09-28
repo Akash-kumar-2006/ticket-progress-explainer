@@ -26,20 +26,32 @@ an evaluator sees an honest engineering boundary rather than an overclaim.
   conservative comparison, but the baseline does not attempt to be a strong
   competitor.
 
-## 4. "Next action" is an inference
+## 4. "Next action" is still partly an inference
 
-- The next-expected-action sentence is derived by the state engine from the
-  most relevant event. It is always evidence-backed, but its *content* is a
-  prediction (e.g. "the vendor is expected to provide: X"). When dependencies
-  are vague, the action sentence stays generic. Measured next-action accuracy
-  is ~49% on the synthetic set.
+- The next-action sentence is derived from the action-marker lexicon over real
+  event text (`engines/action_markers.py`). It is always evidence-backed, and
+  each prediction reports its category and confidence
+  (`specific` / `generic` / `sparse`).
+- Where no marker phrase is present the sentence stays generic, and where
+  evidence is too sparse the system states no action at all rather than
+  inventing one.
+- The category accuracy of 100% covers only the 24 of 37 next-action cases whose
+  correct category can be established from event structure alone. The remaining
+  13 are not scored, because deciding them requires reading the note. See
+  `NEXT_ACTION.md` for why this metric changed and what it does and does not
+  prove.
 
 ## 5. No LLM involvement
 
 - The default generator is a deterministic, rule-based template engine. An
   optional LLM generator interface exists (`generators/llm.py`) but is neither
-  enabled nor required; any LLM use would trade explainability and determinism
-  for fluency, and would need its own grounding/refusal tests before production.
+  enabled nor required; it falls back to the rule-based output when no provider
+  is configured.
+- Should an LLM be connected later, `services/grounding_gate.py` is the safety
+  net: it verifies that every claim cites a real event, that no completion,
+  date, approval, vendor response or customer contact is invented, and that the
+  generator refuses when evidence is insufficient. It is already enforced by 18
+  tests and reachable from the API, so the LLM path would not ship ungated.
 
 ## 6. Geographic / org granularity
 
@@ -57,9 +69,18 @@ an evaluator sees an honest engineering boundary rather than an overclaim.
 
 - Roles are plain header/body strings. This is a demonstration dependency; the
   API contract is role names, not identity tokens.
+- Authorization is nonetheless enforced server-side: roles are validated against
+  a fixed vocabulary, the `X-Role` header must agree with the body role, and the
+  request schemas have no default role, so omitting it fails rather than granting
+  privilege. See `SECURITY.md` for the production recommendation (real identity
+  provider + PostgreSQL).
 
 ## 9. Evaluation is synthetic
 
 - The reviewer is a deterministic, documented rule (see VALIDATION.md), not a
-  human panel. Human-validated rows can be stored via `POST /evaluation/human`
-  and remain separate from the synthetic runs; they are not faked.
+  human panel.
+- A human-validation framework is implemented and tested — review packet,
+  submission endpoint, CSV round-trip, acceptance rate, next-action agreement
+  and Cohen's/Fleiss' kappa — but **no human reviewers have been run**, so no
+  human agreement figure can be quoted. The API reports
+  `validation_completed: false` until real rows exist.

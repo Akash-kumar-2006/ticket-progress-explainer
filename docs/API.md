@@ -40,11 +40,59 @@ see each endpoint).
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/dashboard/metrics` | Totals by state/status/region/priority, grounding |
+| GET | `/dashboard/metrics` | Totals by state/status/region/priority, grounding, latest evaluation |
 | GET | `/evaluation/summary` | Latest experiment metrics |
 | GET | `/evaluation/results` | Per-case result rows |
 | POST | `/evaluation/run` | Run the synthetic evaluation |
-| POST | `/evaluation/human` | Store a human reviewer row for a case |
+| POST | `/evaluation/human` | Store a human reviewer row for a case (legacy single-reviewer form) |
+
+## Grounding gate
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/tickets/{id}/grounding-check?generator=rule_based` | Validate a generated explanation against the ticket's real events |
+
+Returns `passed`, `refused`, a per-check list and any `violations`. Works for
+`generator=llm` too — the LLM generator stays optional and falls back to the
+rule-based output when no provider is configured.
+
+```json
+{
+  "passed": true,
+  "refused": false,
+  "checks": [
+    "claims_have_evidence: PASS - 0 claim(s) without evidence",
+    "evidence_exists_on_ticket: PASS - unknown event id(s): []",
+    "no_invented_completion: PASS",
+    "no_invented_vendor: PASS"
+  ],
+  "violations": [],
+  "grounding_score": 77,
+  "insufficient_evidence": false
+}
+```
+
+## Human validation
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/evaluation/human/packet?limit=12` | Blank review sheet: expected action vs generated action |
+| POST | `/evaluation/human/review` | Record one reviewer's judgement on one case |
+| GET | `/evaluation/human/summary` | Agreement statistics; `validation_completed` is false until data exists |
+
+```json
+POST /api/evaluation/human/review
+{
+  "case_id": "E-002",
+  "ticket_id": "DEMO-002",
+  "reviewer_id": "R1",
+  "decision": "ACCEPT",
+  "action_agrees": true,
+  "understanding": 4,
+  "followup_required": false,
+  "comment": "clear"
+}
+```
 
 ## Integration stub
 
@@ -54,7 +102,10 @@ see each endpoint).
 | GET | `/integrations/stub/ticket/{id}` | Stub ticket fetch |
 | GET | `/integrations/stub/events/{id}` | Stub events fetch |
 
-## Role gates (500-level transparency)
+## Role gates
+
+Roles are validated server-side. The known vocabulary is `CUSTOMER`,
+`SUPPORT_AGENT`, `AGENT`, `REVIEWER`, `ADMIN`, `SYSTEM`.
 
 | Action | Required role |
 |--------|---------------|
@@ -62,6 +113,16 @@ see each endpoint).
 | review | REVIEWER, ADMIN |
 | publish | REVIEWER, ADMIN (only from APPROVED) |
 | rollback | ADMIN (only on PUBLISHED) |
+
+| Situation | Response |
+|-----------|----------|
+| Role not in the vocabulary | 400 |
+| Role present but not permitted | 403 |
+| `X-Role` header disagrees with the body role | 403 |
+| Role omitted from a privileged request | 422 |
+| Unknown ticket | 404 |
+
+See [SECURITY.md](SECURITY.md) for the production recommendation.
 
 ## Example — generate an explanation
 

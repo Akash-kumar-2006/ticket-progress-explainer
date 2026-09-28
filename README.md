@@ -67,24 +67,32 @@ without changing the engines.
 |------------|------------|
 | Backend    | Python 3.14, FastAPI, Pydantic v2, SQLAlchemy 2, SQLite |
 | Frontend   | React 18, TypeScript, Vite, Tailwind CSS, Recharts, Axios |
-| Testing    | pytest (47 tests) |
+| Testing    | pytest (155 tests) |
 | Data       | Pandas, synthetic generator (seed 42, reproducible) |
+| CI         | GitHub Actions (pytest + frontend build) |
+
+No machine-learning library is required; the core engine is fully rule-based and
+runs offline.
 
 ## Repository layout
 
 ```
 backend/app/
   api/           REST endpoints (routes, enums, schemas)
-  engines/       timeline, dependency, state, date_risk, evidence, grounding
+  engines/       timeline, dependency, state, date_risk, evidence, grounding,
+                 action_markers (next-action lexicon)
   generators/    base, rule-based (default), baseline (status-only), llm (optional)
-  services/      explanation orchestration, evaluation, ingestion, validation
+  services/      explanation orchestration, evaluation, ingestion, validation,
+                 grounding_gate, human_evaluation
   integrations/  offline ticketing stub (ServiceNow-like)
   models/        SQLAlchemy models (tickets, events, explanations, audit, evaluation)
-scripts/         dataset generation, validation, evaluation cases, seeding
+scripts/         dataset generation, validation, evaluation cases, seeding,
+                 measurement probe
 data/            synthetic raw/processed datasets + evaluation cases (reproducible)
 frontend/        React/Vite dashboard
 tests/           pytest suite
-docs/            requirements, architecture, privacy, change control, evaluation
+docs/            requirements, architecture, privacy, change control, evaluation,
+                 next action, security, CI
 ```
 
 ## Quick start
@@ -115,7 +123,14 @@ cd frontend && npm run build
 Run the test suite at any time:
 
 ```bash
-python -m pytest          # 47 tests: engines, generators, evaluation, API, role gates
+python -m pytest          # 155 tests: engines, next action, grounding gate,
+                          # roles, human-evaluation framework, evaluation, API
+```
+
+Measure the next-action metrics without touching the database:
+
+```bash
+python -m scripts.measure_next_action
 ```
 
 ## Demo tickets
@@ -138,12 +153,18 @@ Baseline = status-only. Prototype = evidence-grounded. Over 64 cases:
 
 | Metric                          | Baseline | Prototype |
 |---------------------------------|----------|-----------|
-| Understanding (0–5)             | 2.34     | 4.36      |
-| Follow-up required              | 57.8%    | 26.6%     |
-| State accuracy                  | —        | 76.6%     |
-| Blocker accuracy                | —        | 79.2%     |
+| Understanding (0–5)             | 2.34     | 4.52      |
+| Follow-up required              | 57.8%    | 3.1%      |
+| State accuracy                  | —        | 100%      |
+| Blocker accuracy                | —        | 100%      |
+| Next-action accuracy (category) | —        | 94.6%     |
 | Promised-date accuracy          | —        | 96.9%     |
 | Grounding ≥ 60                  | —        | 85.9%     |
+
+Next action is scored on its **category** against a structurally derived
+reference label. See [docs/NEXT_ACTION.md](docs/NEXT_ACTION.md) for the
+methodology, the previous 48.6% figure, and an honest account of what the number
+does and does not prove.
 
 See [docs/FINAL_REPORT.md](docs/FINAL_REPORT.md) for the full write-up.
 
@@ -157,6 +178,9 @@ See [docs/FINAL_REPORT.md](docs/FINAL_REPORT.md) for the full write-up.
 - [Known limitations](docs/LIMITATIONS.md)
 - [API reference](docs/API.md)
 - [Validation methodology](docs/VALIDATION.md)
+- [Next-action prediction & metrics](docs/NEXT_ACTION.md)
+- [Security & role enforcement](docs/SECURITY.md)
+- [Continuous integration](docs/CI.md)
 - [30–45 min evaluation demo script](docs/DEMO_SCRIPT.md)
 
 ## License
