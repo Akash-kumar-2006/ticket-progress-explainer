@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
@@ -23,6 +23,9 @@ class ExperimentRun(Base):
     state_accuracy: Mapped[float] = mapped_column(Float, default=0.0)
     blocker_accuracy: Mapped[float] = mapped_column(Float, default=0.0)
     next_action_accuracy: Mapped[float] = mapped_column(Float, default=0.0)
+    next_action_category_accuracy: Mapped[float] = mapped_column(Float, default=0.0)
+    next_action_category_scored_cases: Mapped[int] = mapped_column(Integer, default=0)
+    next_action_text_match_rate: Mapped[float] = mapped_column(Float, default=0.0)
     promised_date_accuracy: Mapped[float] = mapped_column(Float, default=0.0)
     grounding_accuracy: Mapped[float] = mapped_column(Float, default=0.0)
 
@@ -42,6 +45,9 @@ class ExperimentRun(Base):
             "state_accuracy": self.state_accuracy,
             "blocker_accuracy": self.blocker_accuracy,
             "next_action_accuracy": self.next_action_accuracy,
+            "next_action_category_accuracy": self.next_action_category_accuracy,
+            "next_action_category_scored_cases": self.next_action_category_scored_cases,
+            "next_action_text_match_rate": self.next_action_text_match_rate,
             "promised_date_accuracy": self.promised_date_accuracy,
             "grounding_accuracy": self.grounding_accuracy,
         }
@@ -69,6 +75,10 @@ class EvaluationResult(Base):
     state_match: Mapped[bool] = mapped_column(Boolean, default=False)
     blocker_match: Mapped[bool] = mapped_column(Boolean, default=False)
     next_action_match: Mapped[bool] = mapped_column(Boolean, default=False)
+    next_action_category: Mapped[str] = mapped_column(String(32), default="")
+    expected_action_category: Mapped[str] = mapped_column(String(32), default="")
+    next_action_category_scored: Mapped[bool] = mapped_column(Boolean, default=False)
+    next_action_text_match: Mapped[bool] = mapped_column(Boolean, default=False)
     date_match: Mapped[bool] = mapped_column(Boolean, default=False)
     grounding_score: Mapped[float] = mapped_column(Float, default=0.0)
     grounding_ok: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -92,9 +102,56 @@ class EvaluationResult(Base):
             "state_match": self.state_match,
             "blocker_match": self.blocker_match,
             "next_action_match": self.next_action_match,
+            "next_action_category": self.next_action_category,
+            "expected_action_category": self.expected_action_category,
+            "next_action_category_scored": self.next_action_category_scored,
+            "next_action_text_match": self.next_action_text_match,
             "date_match": self.date_match,
             "grounding_score": self.grounding_score,
             "grounding_ok": self.grounding_ok,
             "human_understanding": self.human_understanding,
             "human_followup": self.human_followup,
+        }
+
+
+class HumanReview(Base):
+    """One reviewer's judgement on one evaluation case.
+
+    Rows are only created by ``POST /api/evaluation/human/review``. The table
+    ships empty: the framework is ready, no human validation has been performed.
+    """
+
+    __tablename__ = "human_reviews"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    case_id: Mapped[str] = mapped_column(String(64), index=True)
+    ticket_id: Mapped[str] = mapped_column(String(64), index=True)
+    reviewer_id: Mapped[str] = mapped_column(String(64), index=True)
+    #: Ground-truth action the reviewer was shown, for reference in reports.
+    expected_action: Mapped[str] = mapped_column(Text, default="")
+    generated_action: Mapped[str] = mapped_column(Text, default="")
+    #: ACCEPT | REJECT | UNCLEAR
+    decision: Mapped[str] = mapped_column(String(16), default="")
+    #: Did the generated next action match the expected one?
+    action_agrees: Mapped[bool] = mapped_column(Boolean, default=False)
+    #: 1-5, same scale as the synthetic reviewer.
+    understanding: Mapped[int] = mapped_column(Integer, default=0)
+    followup_required: Mapped[bool] = mapped_column(Boolean, default=True)
+    comment: Mapped[str] = mapped_column(Text, default="")
+    submitted_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "case_id": self.case_id,
+            "ticket_id": self.ticket_id,
+            "reviewer_id": self.reviewer_id,
+            "expected_action": self.expected_action,
+            "generated_action": self.generated_action,
+            "decision": self.decision,
+            "action_agrees": self.action_agrees,
+            "understanding": self.understanding,
+            "followup_required": self.followup_required,
+            "comment": self.comment,
+            "submitted_at": self.submitted_at.isoformat() if self.submitted_at else None,
         }

@@ -90,6 +90,7 @@ class EvaluationService:
         expected_state = case["expected_state"]
         expected_blocker = str(case.get("expected_blocker") or "")
         expected_next = str(case.get("expected_next_action") or "")
+        expected_category = str(case.get("expected_action_category") or "").upper()
         expected_date = case.get("expected_date_status") or ""
 
         baseline_payload, _ = self.service.generate(ticket_id, "baseline", as_of, persist=False)
@@ -97,8 +98,19 @@ class EvaluationService:
 
         p_state = _matches_state(proto_payload.progress_state, expected_state)
         p_block = _mentions(proto_payload.explanation, expected_blocker) if expected_blocker else True
-        p_next = _mentions(proto_payload.explanation, expected_next) if expected_next else True
         p_date = bool(expected_date) and proto_payload.date_status == expected_date
+
+        # Next action is scored on the action CATEGORY, which is derived
+        # structurally (event types / dependency kinds) in the case builder and
+        # is therefore independent of the marker lexicon the system uses. The old
+        # free-text comparison is kept as a secondary signal only, because the
+        # expected sentence is produced by the same engine as the output and can
+        # therefore never be an independent measurement.
+        p_text = _mentions(proto_payload.explanation, expected_next) if expected_next else True
+        category_scored = expected_category not in ("", "UNSPECIFIED")
+        p_category = proto_payload.next_action_category or ""
+        p_next = (p_category == expected_category) if category_scored else p_text
+
         p_understanding = 1 + int(p_state) + int(p_block) + int(p_next) + int(p_date)
         p_followup = p_understanding < 4
 
@@ -126,6 +138,10 @@ class EvaluationService:
             "date_match": bool(p_date),
             "grounding_score": float(proto_payload.grounding_score),
             "grounding_ok": bool(proto_payload.grounding_score >= 60),
+            "next_action_category": p_category,
+            "expected_action_category": expected_category,
+            "next_action_category_scored": bool(category_scored),
+            "next_action_text_match": bool(p_text),
         }
 
     @staticmethod
@@ -179,6 +195,11 @@ def _aggregate(results: list[dict]) -> dict:
     p_fu = sum(1 for r in results if r["prototype_followup"])
     blocker_cases = [r for r in results if r["expected_state"] != "RESOLVED" and _has_blocker(r)]
     next_cases = [r for r in results if r["expected_state"] != "RESOLVED"]
+    category_cases = [
+        r for r in next_cases
+        if r.get("next_action_category_scored")
+        and r.get("expected_action_category") not in ("", "UNSPECIFIED")
+    ]
     return {
         "baseline_mean_understanding": round(b_mean, 3),
         "prototype_mean_understanding": round(p_mean, 3),
@@ -190,6 +211,13 @@ def _aggregate(results: list[dict]) -> dict:
         "state_accuracy": round(sum(1 for r in results if r["state_match"]) / n, 3),
         "blocker_accuracy": round(sum(1 for r in blocker_cases if r["blocker_match"]) / max(len(blocker_cases), 1), 3),
         "next_action_accuracy": round(sum(1 for r in next_cases if r["next_action_match"]) / max(len(next_cases), 1), 3),
+        "next_action_category_accuracy": round(
+            sum(1 for r in category_cases if r["next_action_match"]) / max(len(category_cases), 1), 3
+        ),
+        "next_action_category_scored_cases": len(category_cases),
+        "next_action_text_match_rate": round(
+            sum(1 for r in next_cases if r.get("next_action_text_match")) / max(len(next_cases), 1), 3
+        ),
         "promised_date_accuracy": round(sum(1 for r in results if r["date_match"]) / n, 3),
         "grounding_accuracy": round(sum(1 for r in results if r["grounding_ok"]) / n, 3),
     }

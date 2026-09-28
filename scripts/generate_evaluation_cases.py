@@ -7,7 +7,7 @@ scores are stored separately once collected (see docs/VALIDATION.md).
 
 Columns:
   case_id, ticket_id, expected_state, expected_blocker, expected_next_action,
-  expected_date_status, difficulty, failure_case,
+  expected_action_category, expected_date_status, difficulty, failure_case,
   human_understanding_score, human_followup_required, baseline_score, prototype_score
 """
 from __future__ import annotations
@@ -33,28 +33,46 @@ EXTRA_CASES = 34  # pick regular tickets until we reach >= REQUIRED total
 MIN_CASES = 30
 
 
+def _clean(value) -> str:
+    """Return a real string for a possibly-missing CSV cell.
+
+    ``str(row.get("message") or "")`` produces the literal text "nan" for an
+    empty cell, because NaN is truthy. That leaked into the reference labels of
+    the evaluation set, so every comparison against it was guaranteed to fail.
+    """
+    if value is None:
+        return ""
+    if isinstance(value, float) and pd.isna(value):
+        return ""
+    text = str(value).strip()
+    return "" if text.lower() in ("nan", "none", "null") else text
+
+
 def _load_events() -> dict[str, list[EventData]]:
     df = pd.read_csv(RAW / "events.csv")
     by_ticket: dict[str, list[EventData]] = {}
     for _, row in df.iterrows():
         ts = pd.Timestamp(row["timestamp"]).to_pydatetime()
         ev = EventData(
-            event_id=str(row["event_id"]),
-            ticket_id=str(row["ticket_id"]),
+            event_id=_clean(row["event_id"]),
+            ticket_id=_clean(row["ticket_id"]),
             timestamp=ts,
-            event_type=str(row["event_type"]),
-            region=str(row.get("region") or ""),
-            team=str(row.get("team") or ""),
-            old_status=row.get("old_status") if isinstance(row.get("old_status"), str) else None,
-            new_status=row.get("new_status") if isinstance(row.get("new_status"), str) else None,
-            message=str(row.get("message") or ""),
-            dependency_id=row.get("dependency_id") if isinstance(row.get("dependency_id"), str) else None,
-            vendor=row.get("vendor") if isinstance(row.get("vendor"), str) else None,
-            approval_type=row.get("approval_type") if isinstance(row.get("approval_type"), str) else None,
+            event_type=_clean(row["event_type"]),
+            region=_clean(row.get("region")),
+            team=_clean(row.get("team")),
+            old_status=_clean(row.get("old_status")) or None,
+            new_status=_clean(row.get("new_status")) or None,
+            message=_clean(row.get("message")),
+            dependency_id=_clean(row.get("dependency_id")) or None,
+            dependency_title=_clean(row.get("dependency_title")) or None,
+            dependency_owner=_clean(row.get("dependency_owner")) or None,
+            vendor=_clean(row.get("vendor")) or None,
+            vendor_item=_clean(row.get("vendor_item")) or None,
+            approval_type=_clean(row.get("approval_type")) or None,
         )
-        if row.get("promised_date") and isinstance(row["promised_date"], str):
+        if _clean(row.get("promised_date")):
             ev.promised_date = pd.Timestamp(row["promised_date"]).to_pydatetime()
-        by_ticket.setdefault(str(row["ticket_id"]), []).append(ev)
+        by_ticket.setdefault(_clean(row["ticket_id"]), []).append(ev)
     for k in by_ticket:
         by_ticket[k].sort(key=lambda e: (e.timestamp, e.event_id))
     # mark conflicts the same way the store normalizer does
@@ -64,6 +82,50 @@ def _load_events() -> dict[str, list[EventData]]:
         for ev in ev_list:
             ev.conflict_flag = ev.event_id in flagged
     return by_ticket
+
+
+#: Categories that can be decided from structure alone (event types and
+#: dependency kinds), without reading marker phrases out of message text. This
+#: keeps the reference label independent of the action-marker lexicon that the
+#: system under test uses.
+UNSPECIFIED_ACTION = "UNSPECIFIED"
+
+_STRUCTURAL_EVENT_CATEGORY = {
+    "TEAM_TRANSFER": "REASSIGNMENT",
+    "DEPENDENCY_CREATED": "DEPENDENCY_PENDING",
+    "VENDOR_UPDATE": "VENDOR_RESPONSE",
+    "APPROVAL_REQUESTED": "APPROVAL",
+}
+
+
+def _expected_action_category(progress, deps, events) -> str:
+    """Derive the expected next-action category from structure only."""
+    state = progress.progress_state
+    if state == "RESOLVED":
+        return "CLOSURE"
+    if state == "REOPENED":
+        return "INVESTIGATION"
+
+    pending = [d for d in deps if d.status in ("pending", "blocked")]
+    by_kind: dict[str, list] = {}
+    for d in pending:
+        by_kind.setdefault(d.kind, []).append(d)
+    if by_kind.get("approval"):
+        return "APPROVAL"
+    if by_kind.get("vendor"):
+        return "VENDOR_RESPONSE"
+    if by_kind.get("customer"):
+        return "CUSTOMER_RESPONSE"
+    if state in ("BLOCKED", "WAITING_FOR_INTERNAL_TEAM"):
+        return "DEPENDENCY_PENDING"
+    if state == "TRANSFERRED":
+        return "REASSIGNMENT"
+
+    for e in reversed(events):
+        mapped = _STRUCTURAL_EVENT_CATEGORY.get(e.event_type)
+        if mapped:
+            return mapped
+    return UNSPECIFIED_ACTION
 
 
 def _failure_case(events: list[EventData], progress_state: str, date_status) -> str:
@@ -130,6 +192,7 @@ def _build_cases(events_by_ticket: dict[str, list[EventData]], tickets: pd.DataF
                 "expected_state": progress.progress_state,
                 "expected_blocker": blocker,
                 "expected_next_action": progress.next_action or "",
+                "expected_action_category": _expected_action_category(progress, deps, events),
                 "expected_date_status": progress.date_status or "",
                 "difficulty": _difficulty(progress.progress_state),
                 "failure_case": _failure_case(events, progress.progress_state, progress.date_status),

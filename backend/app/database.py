@@ -30,3 +30,34 @@ def create_all():
     from . import models  # noqa: F401  (imports register all tables)
 
     Base.metadata.create_all(bind=engine)
+    _add_missing_columns()
+
+
+#: Columns added after the first release. ``create_all()`` never alters an
+#: existing table, so on SQLite (and any other engine that supports ADD COLUMN)
+#: we add them explicitly and idempotently. This keeps existing local databases
+#: usable without a manual migration step.
+_ADDITIVE_COLUMNS: tuple[tuple[str, str, str], ...] = (
+    ("experiment_runs", "next_action_category_accuracy", "FLOAT DEFAULT 0"),
+    ("experiment_runs", "next_action_category_scored_cases", "INTEGER DEFAULT 0"),
+    ("experiment_runs", "next_action_text_match_rate", "FLOAT DEFAULT 0"),
+    ("evaluation_results", "next_action_category", "VARCHAR(32) DEFAULT ''"),
+    ("evaluation_results", "expected_action_category", "VARCHAR(32) DEFAULT ''"),
+    ("evaluation_results", "next_action_category_scored", "BOOLEAN DEFAULT 0"),
+    ("evaluation_results", "next_action_text_match", "BOOLEAN DEFAULT 0"),
+)
+
+
+def _add_missing_columns() -> None:
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(engine)
+    existing_tables = set(inspector.get_table_names())
+    with engine.begin() as conn:
+        for table, column, ddl in _ADDITIVE_COLUMNS:
+            if table not in existing_tables:
+                continue
+            present = {c["name"] for c in inspector.get_columns(table)}
+            if column in present:
+                continue
+            conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}"))
